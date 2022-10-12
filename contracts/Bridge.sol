@@ -466,20 +466,7 @@ contract Bridge is Context , ReentrancyGuard {
         }
     }
 
-     function removeBaseFee(address assetAddress , uint256 amount) private returns(uint256 value) {
-         // removeBaseFee
-                uint256 baseFeePercentage = settings.baseFeePercentage();
-                if(settings.baseFeeEnable() && baseFeePercentage > 0 ){
-                   uint256 baseFee = amount * baseFeePercentage / 10000;
-                   nativeAssets[assetAddress].baseFeeBalance += baseFee;
-                    value = value - baseFee;
-                }
-                else{
-                    value = amount;
-                }
-                
-
-     }
+    
     // internal fxn used to process incoming payments 
     function processedPayment(address assetAddress ,uint256 chainID, uint256 amount) internal returns (bool , uint256) {
         uint256 fees = IfeeController(feeController).getBridgeFee(msg.sender, assetAddress, chainID);
@@ -487,7 +474,7 @@ contract Bridge is Context , ReentrancyGuard {
             if(msg.value >= amount + fees &&  msg.value > 0){
                 uint256 value = msg.value - fees;
                 
-                return (true , removeBaseFee(assetAddress , value));
+                return (true , value);
             } else {
                 return (false , 0);
             }
@@ -498,7 +485,7 @@ contract Bridge is Context , ReentrancyGuard {
                 uint256 balanceBefore = token.balanceOf(address(this));
                 require(token.transferFrom(_msgSender() , address(this) , amount), "I_F");
                 uint256 balanceAfter = token.balanceOf(address(this));
-               return (true ,removeBaseFee(assetAddress ,  balanceAfter - balanceBefore ));
+               return (true , balanceAfter - balanceBefore );
             } else {
                 return (false , 0);
             }

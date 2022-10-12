@@ -21,8 +21,6 @@ contract Settings {
      address public brgToken;
      uint256[]  networkSupportedChains;
 
-     uint256 public baseFeePercentage = 10;
-     bool public baseFeeEnable; 
      mapping(uint256 =>  bool) public isNetworkSupportedChain;
      mapping(address => mapping(address => bool)) public approvedToAdd;
      
@@ -62,18 +60,6 @@ contract Settings {
         ValidationPercentage = _ValidationPercentage;
     }
     
-    function setbaseFeePercentage(uint256 _base) external{
-        require(msg.sender == controller.owner() ,"U_A");
-        require(_base  < 1000 , "exceed 10%");
-        emit BaseFeePercentageUpdated(baseFeePercentage , _base);
-        baseFeePercentage = _base;
-    }
-
-    function enableBaseFee() external{
-        require(msg.sender == controller.owner() ,"U_A");
-        baseFeeEnable = !baseFeeEnable;
-        emit BaseFeeStatusChanged(baseFeeEnable);
-    }
 
     function setbrgToken(address token) external {
        onlyAdmin();
