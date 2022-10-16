@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.0;
 
+// import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -24,146 +25,145 @@ contract Bridge is Context , ReentrancyGuard {
         uint256 maxAmount;
         uint256 feeBalance;
         uint256 collectedFees;
+        uint256 networkFee;
         bool ownedRail;
         address manager;
         address feeRemitance;
         uint256 balance;
         bool isSet;
         uint256 baseFeeBalance;
-   }
-   struct directForiegnAsset {
-          address foriegnAddress;
-          address nativeAddress;
-          uint256 chainID;
-          bool isSet;
-   }
+    }
+    struct directForiegnAsset {
+        address foriegnAddress;
+        address nativeAddress;
+        uint256 chainID;
+        bool isSet;
+    }
 
-   IController  public controller;
-   Isettings public settings;
-   IRegistery  public registry;
-   IbridgePool public bridgePool;
-   bool public paused;
-   
-   mapping(address => asset) public nativeAssets;
-   mapping(address => bool) public isActiveNativeAsset;
-   mapping(address => uint256[])  assetSupportedChainIds;
-   mapping(address => mapping(uint256 => bool)) public  isAssetSupportedChain;
-   mapping(address => uint256 ) public  foriegnAssetChainID;
-   mapping(address => asset) public foriegnAssets;
-   mapping(uint256 => directForiegnAsset) public directForiegnAssets;
-   mapping(address => mapping(uint256 => address)) public wrappedForiegnPair;
-   mapping(address => address)  foriegnPair;
-   mapping(address => mapping(uint256 => bool))  hasWrappedForiegnPair;
+    IController  public controller;
+    Isettings public settings;
+    IRegistery  public registry;
+    IbridgePool public bridgePool;
+    bool public paused;
+    
+    mapping(address => asset) public nativeAssets;
+    mapping(address => bool) public isActiveNativeAsset;
+    mapping(address => uint256[])  assetSupportedChainIds;
+    mapping(address => mapping(uint256 => bool)) public  isAssetSupportedChain;
+    mapping(address => uint256 ) public  foriegnAssetChainID;
+    mapping(address => asset) public foriegnAssets;
+    mapping(uint256 => directForiegnAsset) public directForiegnAssets;
+    mapping(address => mapping(uint256 => address)) public wrappedForiegnPair;
+    mapping(address => address)  foriegnPair;
+    mapping(address => mapping(uint256 => bool))  hasWrappedForiegnPair;
 
 
-   uint256  totalFees;
-   uint256  feeBalance;
-   uint256 public   chainId; // current chain id
+    uint256  totalFees;
+    uint256  feeBalance;
+    uint256 constant feeDivisor = 10**4;
+    uint256 public   chainId; // current chain id
 //    uint256 public immutable chainId; // current chain id 
-   address  deployer  ;
-   address  feeController;
-   bool  activeMigration;
-   uint256  migrationInitiationTime;
-   uint256  constant migrationDelay = 2 days;
-   address  newBridge;
-   address  migrator;
+    address  deployer  ;
+    address  feeController;
+    bool  activeMigration;
+    uint256  migrationInitiationTime;
+    uint256  constant migrationDelay = 2 days;
+    address  newBridge;
+    address  migrator;
 
-   uint256  directForiegnCount;
-//    address public immutable migrator;
-   uint256  fMigrationAt;
-   uint256  fDirectSwapMigrationAt;
-   uint256  nMigrationAt;
-   
-   address[] public foriegnAssetsList;
-   address[]  public nativeAssetsList;
-   
-   mapping(address => mapping(uint256 =>  bool)) public isDirectSwap;
-   event MigrationInitiated(address indexed newBridge);
-   event RegisterredNativeMigration(address indexed assetAddress);
-   event RegisteredForiegnMigration(address indexed foriegnAddress, uint256 indexed chainID, address indexed wrappedAddress);
-   event MigratedAsset(address indexed assetAddress , bool isNativeAsset);
-   event ForiegnAssetAdded(address indexed foriegnAddress , uint256 indexed chainID ,address indexed  wrappedAddress);
-   event updatedAddresses(address indexed settings , address indexed feeController , address indexed deployer);
-   event assetUpdated(address indexed assetAddress ,address indexed  manager ,address indexed  _feeRemitance ,uint256 min ,uint256 max );
-   event MigrationCompleted(address indexed newBridge);
-   event BridgePauseStatusChanged(bool status);
+    uint256  directForiegnCount;
+    //    address public immutable migrator;
+    uint256  fMigrationAt;
+    uint256  fDirectSwapMigrationAt;
+    uint256  nMigrationAt;
+
+    address[] public foriegnAssetsList;
+    address[]  public nativeAssetsList;
+    
+    mapping(address => mapping(uint256 =>  bool)) public isDirectSwap;
+    event MigrationInitiated(address indexed newBridge);
+    event RegisterredNativeMigration(address indexed assetAddress);
+    event RegisteredForiegnMigration(address indexed foriegnAddress, uint256 indexed chainID, address indexed wrappedAddress);
+    event MigratedAsset(address indexed assetAddress , bool isNativeAsset);
+    event ForiegnAssetAdded(address indexed foriegnAddress , uint256 indexed chainID ,address indexed  wrappedAddress);
+    event updatedAddresses(address indexed settings , address indexed feeController , address indexed deployer);
+    event assetUpdated(address indexed assetAddress ,address indexed  manager ,address indexed  _feeRemitance ,uint256 min ,uint256 max );
+    event MigrationCompleted(address indexed newBridge);
+    event BridgePauseStatusChanged(bool status);
 //    event NativeAssetStatusChanged(address indexed assetAddress , bool status);
   
   
-   event SendTransaction(
-       bytes32 transactionID, 
-       uint256 chainID,
-       address indexed assetAddress,
-       uint256 sendAmount,
-       address indexed receiver,
-       uint256 nounce,
-       address indexed  sender
-    );
-   event BurnTransaction(
-       bytes32 transactionID,
-       uint256 chainID,
-       address indexed assetAddress,
-       uint256 sendAmount,
-       address indexed receiver,
-       uint256 nounce,
-       address indexed  sender
-    );
-   event RailAdded(
-       address indexed assetAddress,
-       uint256 minAmount,
-       uint256 maxAmount,
-       uint256[] supportedChains,
-       address[] foriegnAddresses,
-       bool directSwap,
-       address  registrar,
-       bool ownedRail,address indexed manager,
-       address  feeRemitance,
-       uint256 deployWith
-    );
-   
+    event SendTransaction(
+        bytes32 transactionID, 
+        uint256 chainID,
+        address indexed assetAddress,
+        uint256 sendAmount,
+        address indexed receiver,
+        uint256 nounce,
+        address indexed  sender
+        );
+    event BurnTransaction(
+        bytes32 transactionID,
+        uint256 chainID,
+        address indexed assetAddress,
+        uint256 sendAmount,
+        address indexed receiver,
+        uint256 nounce,
+        address indexed  sender
+        );
+    event RailAdded(
+        address indexed assetAddress,
+        uint256 minAmount,
+        uint256 maxAmount,
+        uint256[] supportedChains,
+        address[] foriegnAddresses,
+        bool directSwap,
+        address  registrar,
+        bool ownedRail,address indexed manager,
+        address  feeRemitance,
+        uint256 deployWith
+        );
 
 
-   constructor (address _controllers , address _settings, address _registry, address _deployer ,address _feeController , address _bridgePool,address _migrator) {
-       noneZeroAddress(_controllers);
-       noneZeroAddress(_settings);
-       noneZeroAddress(_registry);
-       noneZeroAddress(_deployer);
-       noneZeroAddress(_feeController);
-       noneZeroAddress(_bridgePool);
-       settings = Isettings(_settings);
-       controller = IController(_controllers);
-       registry = IRegistery(_registry);
-       migrator = _migrator;
-       deployer = _deployer;
-       feeController = _feeController;
-       bridgePool = IbridgePool(_bridgePool);
-       uint256 id;
-       assembly {
+    constructor (address _controllers , address _settings, address _registry, address _deployer ,address _feeController , address _bridgePool,address _migrator) {
+        noneZeroAddress(_controllers);
+        noneZeroAddress(_settings);
+        noneZeroAddress(_registry);
+        noneZeroAddress(_deployer);
+        noneZeroAddress(_feeController);
+        noneZeroAddress(_bridgePool);
+        settings = Isettings(_settings);
+        controller = IController(_controllers);
+        registry = IRegistery(_registry);
+        migrator = _migrator;
+        deployer = _deployer;
+        feeController = _feeController;
+        bridgePool = IbridgePool(_bridgePool);
+        uint256 id;
+        assembly {
         id := chainid()
     }
     chainId = id;
-   }
-  
+}
 
 
-  function pauseBrigde() external {
-      isOwner();
-      paused = !paused;
+    function pauseBrigde() external {
+        isOwner();
+        paused = !paused;
     //    emit BridgePauseStatusChanged(paused);
-  }
+    }
 
 
-   function updateAddresses(address _settings , address _feeController ,  address _deployer) external {
-       isOwner();
-       noneZeroAddress(_settings) ;
-       noneZeroAddress(_feeController);
-       noneZeroAddress(_deployer);
-       emit updatedAddresses(_settings , _feeController , _deployer);
-       settings = Isettings(_settings);
-       feeController = _feeController;
-       deployer = _deployer;
-
-   }
+    function updateAddresses(address _settings , address _feeController ,  address _deployer) external {
+        isOwner();
+        noneZeroAddress(_settings) ;
+        noneZeroAddress(_feeController);
+        noneZeroAddress(_deployer);
+        emit updatedAddresses(_settings , _feeController , _deployer);
+        settings = Isettings(_settings);
+        feeController = _feeController;
+        deployer = _deployer;
+    }
 
 
 
@@ -336,7 +336,7 @@ contract Bridge is Context , ReentrancyGuard {
        }
        else{
         wrappedAddress =  Ideployer(deployer).deployerWrappedAsset(assetMeta[0] , assetMeta[1], deployWith);
-       foriegnAssets[wrappedAddress] = asset(wrappedAddress , range[0], range[1] , 0 ,0,OwnedRail , manager,feeAddress  , 0, true , 0);
+       foriegnAssets[wrappedAddress] = asset(wrappedAddress , range[0], range[1] , 0 ,0,0,OwnedRail , manager,feeAddress  , 0, true , 0);
        foriegnAssetChainID[wrappedAddress] = chainID;
        foriegnPair[wrappedAddress] = foriegnAddress;
        foriegnAssetsList.push(wrappedAddress);
@@ -356,9 +356,9 @@ contract Bridge is Context , ReentrancyGuard {
     //    require(, "C_E");
        require(isActiveNativeAsset[assetAddress] && isAssetSupportedChain[assetAddress][chainTo] , "AL_E");
        noneZeroAddress(receiver);
-       (bool success, uint256 recievedValue) =  processedPayment(assetAddress ,chainTo, amount);
+       (bool success, uint256 recievedValue, uint feeDeducted) =  processedPayment(assetAddress, amount);
        require(success && recievedValue >= nativeAssets[assetAddress].minAmount && recievedValue  <= nativeAssets[assetAddress].maxAmount  , "I_F");
-       deductFees(assetAddress , chainTo , true);
+       deductFees(assetAddress , feeDeducted, true);
        if(isDirectSwap[assetAddress][chainTo]){
            if(assetAddress == address(0)){
                bridgePool.topUp{ value : recievedValue}(assetAddress , recievedValue);
@@ -398,9 +398,9 @@ contract Bridge is Context , ReentrancyGuard {
        uint256 chainTo = foriegnAssetChainID[assetAddress];
        require(foriegnAssets[assetAddress].isSet && amount  >= foriegnAssets[assetAddress].minAmount && amount  <= foriegnAssets[assetAddress].maxAmount , "AL_E");
        noneZeroAddress(receiver);
-        (bool success, uint256 recievedValue) =  processedPayment(assetAddress ,chainTo, amount);
+        (bool success, uint256 recievedValue,uint256 feeDeducted) =  processedPayment(assetAddress, amount);
        require(success && recievedValue > 0 , "I_F");
-       deductFees(assetAddress ,chainTo , false);
+       deductFees(assetAddress ,feeDeducted , false);
        IwrappedToken(assetAddress).burn(recievedValue);
        address _foriegnAsset = foriegnPair[assetAddress];
        uint256 nounce = registry.getUserNonce(receiver);
@@ -450,7 +450,7 @@ contract Bridge is Context , ReentrancyGuard {
     //    require(, "C");
     //    require(, "N_V");
        
-       payoutUser(payable(transaction.receiver), transaction.assetAddress , removeBaseFee(transaction.assetAddress , transaction.amount));
+      // payoutUser(payable(transaction.receiver), transaction.assetAddress , removeBaseFee(transaction.assetAddress , transaction.amount));
        nativeAssets[transaction.assetAddress].balance -= transaction.amount;
        registry.completeClaimTransaction(claimID);
    }
@@ -468,33 +468,39 @@ contract Bridge is Context , ReentrancyGuard {
 
     
     // internal fxn used to process incoming payments 
-    function processedPayment(address assetAddress ,uint256 chainID, uint256 amount) internal returns (bool , uint256) {
-        uint256 fees = IfeeController(feeController).getBridgeFee(msg.sender, assetAddress, chainID);
+    function processedPayment(address assetAddress ,uint256 amount) internal returns (bool , uint256, uint256) {
+        uint256 feesPercent = IfeeController(feeController).getBridgeFee(msg.sender, assetAddress);
+        uint256 value;
+        uint256 fee;
         if (assetAddress == address(0)) {
-            if(msg.value >= amount + fees &&  msg.value > 0){
-                uint256 value = msg.value - fees;
+            if(msg.value >= amount &&  msg.value > 0){
+                fee = msg.value * feesPercent / feeDivisor;
+                value = msg.value - fee;
                 
-                return (true , value);
+                return (true , value, fee);
             } else {
-                return (false , 0);
+                return (false , 0, 0);
             }
             
         } else {
             IERC20 token = IERC20(assetAddress);
-            if (token.allowance(_msgSender(), address(this)) >= amount && (msg.value >=  fees)) {
+            if (token.allowance(_msgSender(), address(this)) >= amount) {
                 uint256 balanceBefore = token.balanceOf(address(this));
                 require(token.transferFrom(_msgSender() , address(this) , amount), "I_F");
                 uint256 balanceAfter = token.balanceOf(address(this));
-               return (true , balanceAfter - balanceBefore );
+                uint256 amountTransferred = balanceAfter - balanceBefore;
+                fee = amountTransferred * feesPercent / feeDivisor;
+                value = amountTransferred - fee;
+                return (true , value, fee);
             } else {
-                return (false , 0);
+                return (false , 0, 0);
             }
         }
     }
 
 
    // internal fxn for deducting and remitting fees after a sale
-    function deductFees(address assetAddress , uint256 chainID , bool native) private {
+    function deductFees(address assetAddress , uint256 feeToDeduct , bool native) private {
             asset storage currentasset;
             if(native)
                 currentasset = nativeAssets[assetAddress];
@@ -504,45 +510,41 @@ contract Bridge is Context , ReentrancyGuard {
             require(currentasset.isSet ,"I_A");
 
             // uint256 fees_to_deduct = settings.networkFee(chainID);
-            uint256 fees_to_deduct = IfeeController(feeController).getBridgeFee(msg.sender, assetAddress, chainID ) ;
-            totalFees = totalFees + fees_to_deduct;
+            // uint256 fees_to_deduct = IfeeController(feeController).getBridgeFee(msg.sender, assetAddress) ;
+            // totalFees = totalFees + fees_to_deduct;
         
             if (currentasset.ownedRail) {
-            uint256 ownershare = fees_to_deduct * settings.railOwnerFeeShare() / 100;
-            uint256 networkshare = fees_to_deduct - ownershare;
-            currentasset.collectedFees += fees_to_deduct;
+            uint256 ownershare = feeToDeduct * settings.railOwnerFeeShare() / 100;
+            uint256 networkshare = feeToDeduct - ownershare;
+            currentasset.collectedFees += feeToDeduct;
             currentasset.feeBalance += ownershare;
-            feeBalance = feeBalance + networkshare;
+            currentasset.networkFee += networkshare;
 
             } else {
-                currentasset.collectedFees += fees_to_deduct;
-                feeBalance = feeBalance + fees_to_deduct;
+                currentasset.collectedFees += feeToDeduct;
+                currentasset.networkFee = feeBalance + feeToDeduct;
             }
             
-            if (feeBalance > settings.minWithdrawableFee()) {
+            
 
-                if (currentasset.ownedRail) {
-                    if (currentasset.feeBalance > 0) {
-                        payoutUser(payable(currentasset.feeRemitance), address(0), currentasset.feeBalance );
-                        currentasset.feeBalance = 0;
-                    }
-                }
-                if (feeBalance > 0) {
-                    if(currentasset.baseFeeBalance > 0){
-                        payoutUser(payable(settings.feeRemitance()), assetAddress, currentasset.baseFeeBalance);
-                        currentasset.baseFeeBalance  = 0;
-                    }
-                    payoutUser(payable(settings.feeRemitance()), address(0), feeBalance );
-                    feeBalance = 0;
-                    //recieve excess fees
-                    if(address(this).balance > nativeAssets[address(0)].balance ){
-                        uint256 excess = address(this).balance - nativeAssets[address(0)].balance;
-                        payoutUser(payable(settings.feeRemitance()), address(0), excess );
-                    } 
-                    
+            if (currentasset.ownedRail) {
+                if (currentasset.feeBalance > 0) {
+                    payoutUser(payable(currentasset.feeRemitance), assetAddress, currentasset.feeBalance );
+                    currentasset.feeBalance = 0;
                 }
             }
-     }
+            if(currentasset.networkFee > 0){
+                payoutUser(payable(settings.feeRemitance()), assetAddress, currentasset.networkFee);
+                currentasset.networkFee  = 0;
+            }
+            // payoutUser(payable(settings.feeRemitance()), address(0), feeBalance );
+            // feeBalance = 0;
+                    //recieve excess fees
+            if(IERC20(assetAddress).balanceOf(address(this)) > nativeAssets[assetAddress].balance ){
+                uint256 excess = IERC20(assetAddress).balanceOf(address(this)) - nativeAssets[assetAddress].balance;
+                payoutUser(payable(settings.feeRemitance()), assetAddress, excess );
+            } 
+    }
 
 
     function initialMigration(address _newbridge) external {
@@ -724,7 +726,7 @@ contract Bridge is Context , ReentrancyGuard {
     {
         require( !nativeAssets[assetAddress].isSet && _msgSender() == migrator  , "U_A");
         
-        (bool success, uint256 amountRecieved) = processedPayment(assetAddress , 0, balances[1]);
+        (bool success, uint256 amountRecieved, ) = processedPayment(assetAddress , balances[1]);
         require(success && amountRecieved >= balances[1], "I_F");
         _registerRail(assetAddress, supportedChains, false, limits[0], limits[1], ownedRail , feeRemitance, manager , true);
         nativeAssets[assetAddress].balance = balances[0];
@@ -767,6 +769,7 @@ contract Bridge is Context , ReentrancyGuard {
                     maxAmount,
                     0,
                     _collectedFees,
+                    0,
                     ownedRail,
                     manager,
                     feeAddress,

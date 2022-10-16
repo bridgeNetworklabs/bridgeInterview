@@ -2,143 +2,140 @@
 pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interface/Iregistry.sol";
 import "./interface/Isettings.sol";
 import "./interface/Ibridge.sol";
 import "./interface/Icontroller.sol";
 
 
+contract  Registry is Ownable{
+    using ECDSA for bytes32;
 
-contract  Registry is Ownable {
     struct Transaction{
-       uint256 chainId;
-       address assetAddress;
-       uint256 amount;
-       address receiver;
-       uint256 nounce;
-       bool  isCompleted;
-   }
-   struct validation {
-       uint256 validationCount;
-       bool validated;
-   }
-   enum transactionType {send , burn , mint ,claim}
+        uint256 chainId;
+        address assetAddress;
+        uint256 amount;
+        address receiver;
+        uint256 nounce;
+        bool  isCompleted;
+    }
 
-   mapping (address => uint256) public assetTotalTransactionCount;
-   mapping (address => mapping( uint256 => uint256 )) public assetTransactionTypeCount;
-   mapping(address => mapping( uint256 => uint256 )) public assetChainBalance;
-   mapping(address => uint256) public getUserNonce; 
-   mapping (bytes32 => bool)  public isSendTransaction;
-   mapping (bytes32 => Transaction)  public sendTransactions;
-   mapping (bytes32 => bool)  public isClaimTransaction;
-   mapping (bytes32 => Transaction)  public claimTransactions;
-   mapping(bytes32 => Transaction) public mintTransactions;
-   mapping(bytes32 => bool) public isMintTransaction;
-   mapping(bytes32 => Transaction) public burnTransactions;
-   mapping(bytes32 => bool) public isburnTransaction;
-   mapping(bytes32 => validation ) public transactionValidations;
-   mapping(bytes32 => address[] ) public TransactionValidators;
-   mapping(bytes32 => mapping(address => bool)) public hasValidatedTransaction;
-   uint256 public totalTransactions;
+    struct validation {
+        uint256 validationCount;
+        bool validated;
+    }
 
-   event TransactionValidated(bytes32 indexed transactionID);
-   event SendTransactionCompleted(bytes32 indexed transactionID);
-   event BurnTransactionCompleted(bytes32 indexed transactionID);
-   event MintTransactionCompleted(bytes32 indexed transactionID);
-   event ClaimTransactionCompleted(bytes32 indexed transactionID);
+    enum transactionType {send , burn , mint ,claim}
 
-   constructor(){}
-  
+    mapping (address => uint256) public assetTotalTransactionCount;
+    mapping (address => mapping( uint256 => uint256 )) public assetTransactionTypeCount;
+    mapping(address => mapping( uint256 => uint256 )) public assetChainBalance;
+    mapping(address => uint256) public getUserNonce; 
+    mapping (bytes32 => bool)  public isSendTransaction;
+    mapping (bytes32 => Transaction)  public sendTransactions;
+    mapping (bytes32 => bool)  public isClaimTransaction;
+    mapping (bytes32 => Transaction)  public claimTransactions;
+    mapping(bytes32 => Transaction) public mintTransactions;
+    mapping(bytes32 => bool) public isMintTransaction;
+    mapping(bytes32 => Transaction) public burnTransactions;
+    mapping(bytes32 => bool) public isburnTransaction;
+    mapping(bytes32 => validation ) public transactionValidations;
+    mapping(bytes32 => address[] ) public TransactionValidators;
+    mapping(bytes32 => mapping(address => bool)) public hasValidatedTransaction;
+    uint256 public totalTransactions;
 
-  function completeSendTransaction(bytes32 transactionID) external {
-      require(isSendTransaction[transactionID] ,"invalid Transaction");
-      emit SendTransactionCompleted(transactionID);
-      sendTransactions[transactionID].isCompleted = true;
-  }
+    event TransactionValidated(bytes32 indexed transactionID);
+    event SendTransactionCompleted(bytes32 indexed transactionID);
+    event BurnTransactionCompleted(bytes32 indexed transactionID);
+    event MintTransactionCompleted(bytes32 indexed transactionID);
+    event ClaimTransactionCompleted(bytes32 indexed transactionID);
 
+    constructor(){}
 
-  function completeBurnTransaction(bytes32 transactionID) external {
-       require(isburnTransaction[transactionID] ,"invalid Transaction");
-       emit BurnTransactionCompleted(transactionID);
-       burnTransactions[transactionID].isCompleted = true ;
-  }
+    function completeSendTransaction(bytes32 transactionID) external {
+        require(isSendTransaction[transactionID] ,"invalid Transaction");
+        emit SendTransactionCompleted(transactionID);
+        sendTransactions[transactionID].isCompleted = true;
+    }
 
 
-  function completeMintTransaction(bytes32 transactionID) external {
-       require(isMintTransaction[transactionID] ,"invalid Transaction");
-       emit MintTransactionCompleted(transactionID);
-       mintTransactions[transactionID].isCompleted = true;
-  }
+    function completeBurnTransaction(bytes32 transactionID) external {
+        require(isburnTransaction[transactionID] ,"invalid Transaction");
+        emit BurnTransactionCompleted(transactionID);
+        burnTransactions[transactionID].isCompleted = true ;
+    }
 
 
-  function completeClaimTransaction(bytes32 transactionID) external {
-      require(isClaimTransaction[transactionID] ,"invalid Transaction");
-      emit ClaimTransactionCompleted(transactionID);
-      assetChainBalance[claimTransactions[transactionID].assetAddress][claimTransactions[transactionID].chainId] -= claimTransactions[transactionID].amount;
-       claimTransactions[transactionID].isCompleted = true;
-  }
+    function completeMintTransaction(bytes32 transactionID) external {
+        require(isMintTransaction[transactionID] ,"invalid Transaction");
+        emit MintTransactionCompleted(transactionID);
+        mintTransactions[transactionID].isCompleted = true;
+    }
 
 
-   
+    function completeClaimTransaction(bytes32 transactionID) external {
+        require(isClaimTransaction[transactionID] ,"invalid Transaction");
+        emit ClaimTransactionCompleted(transactionID);
+        assetChainBalance[claimTransactions[transactionID].assetAddress][claimTransactions[transactionID].chainId] -= claimTransactions[transactionID].amount;
+        claimTransactions[transactionID].isCompleted = true;
+    }
 
-
-  function registerTransaction(
-       bytes32 transactionID,
-       uint256 chainId,
-       address assetAddress,
-       uint256 amount,
-       address receiver,
-       uint256 nounce,
-       transactionType _transactionType
-  ) 
+    function registerTransaction(
+        bytes32 transactionID,
+        uint256 chainId,
+        address assetAddress,
+        uint256 amount,
+        address receiver,
+        uint256 nounce,
+        transactionType _transactionType
+    ) 
         public 
         onlyOwner 
-  {
-      if (_transactionType  == transactionType.send) {
-          sendTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
-          isSendTransaction[transactionID] = true;
-          getUserNonce[receiver]++;
-          assetChainBalance[assetAddress][chainId] += amount;
-      } else if (_transactionType  == transactionType.burn) {
-          burnTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
-          isburnTransaction[transactionID] = true;
-          getUserNonce[receiver]++;
-      }
-      assetTotalTransactionCount[assetAddress]++;
-      totalTransactions++;
-  }
-  
-  
-  function _registerTransaction(
-       bytes32 transactionID,
-       uint256 chainId,
-       address assetAddress,
-       uint256 amount,
-       address receiver,
-       uint256 nounce,
-       transactionType _transactionType
-  ) 
-      internal
-  {
-      if (_transactionType  == transactionType.mint) {
-          mintTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
-          isMintTransaction[transactionID] = true;
-      } else if (_transactionType  == transactionType.claim) {
-          claimTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
-          isClaimTransaction[transactionID] = true;
-      }
-  }
-  
-  
-  function registerClaimTransaction(
-      bytes32 claimID,
-      uint256 chainFrom,
-      address assetAddress,
-      uint256 amount,
-      address receiver,
-      uint256 nounce
+    {
+        if (_transactionType  == transactionType.send) {
+            sendTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
+            isSendTransaction[transactionID] = true;
+            getUserNonce[receiver]++;
+            assetChainBalance[assetAddress][chainId] += amount;
+        } else if (_transactionType  == transactionType.burn) {
+            burnTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
+            isburnTransaction[transactionID] = true;
+            getUserNonce[receiver]++;
+        }
+        assetTotalTransactionCount[assetAddress]++;
+        totalTransactions++;
+}
+
+    function _registerTransaction(
+        bytes32 transactionID,
+        uint256 chainId,
+        address assetAddress,
+        uint256 amount,
+        address receiver,
+        uint256 nounce,
+        transactionType _transactionType
     ) 
-      external 
+        internal
+    {
+        if (_transactionType  == transactionType.mint) {
+            mintTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
+            isMintTransaction[transactionID] = true;
+        } else if (_transactionType  == transactionType.claim) {
+            claimTransactions[transactionID] = Transaction(chainId , assetAddress ,amount , receiver ,nounce, false);
+            isClaimTransaction[transactionID] = true;
+        }
+    }
+
+    function registerClaimTransaction(
+        bytes32 claimID,
+        uint256 chainFrom,
+        address assetAddress,
+        uint256 amount,
+        address receiver,
+        uint256 nounce
+    ) 
+        external 
     {
         require(IController(Ibridge(owner()).controller()).isOracle(msg.sender),"U_A");
         require(!isClaimTransaction[claimID], "registerred");
@@ -154,18 +151,18 @@ contract  Registry is Ownable {
 
         require(claimID  == requiredClaimID , "claimid_err");
         _registerTransaction(claimID ,chainFrom , assetAddress, amount , receiver ,nounce, transactionType.claim );
-   }
+    }
 
 
-   function registerMintTransaction(
-       bytes32 mintID,
-       uint256 chainFrom,
-       address assetAddress,
-       uint256 amount,
-       address receiver,
-       uint256 nounce
-    ) 
-       external 
+    function registerMintTransaction(
+        bytes32 mintID,
+        uint256 chainFrom,
+        address assetAddress,
+        uint256 amount,
+        address receiver,
+        uint256 nounce
+        ) 
+        external 
     {
         require(IController(Ibridge(owner()).controller()).isOracle(msg.sender),"U_A");
         require(!isMintTransaction[mintID], "registerred");
@@ -188,68 +185,86 @@ contract  Registry is Ownable {
             ));
         require(mintID  == requiredmintID, "mint: error validation mint ID");
         _registerTransaction(mintID ,chainFrom , wrappedAddress, amount , receiver ,nounce, transactionType.mint);
-   }
+    }
 
 
 
-   function validateTransaction(bytes32 transactionId , bytes[] memory signatures ,bool mintable) external  {
-       require(IController(Ibridge(owner()).controller()).isValidator(msg.sender) , "U_A");
-       require(Isettings(Ibridge(owner()).settings()).minValidations() != 0 , "minvalidator_err");
-       Transaction memory transaction;
-       if (mintable) {
-           require(isMintTransaction[transactionId] , "mintID_err"); 
-           transaction =  mintTransactions[transactionId];
-           if(!Ibridge(owner()).isDirectSwap(transaction.assetAddress , transaction.chainId)){
-               (,uint256 max) =  Ibridge(owner()).assetLimits(transaction.assetAddress, false);
-               require(transaction.amount <= max , "Amount_limit_Err");
-           }
+    function validateTransaction(bytes32 transactionId , bytes[] memory signatures ,bool mintable) external  {
+        require(IController(Ibridge(owner()).controller()).isValidator(msg.sender) , "U_A");
+        require(Isettings(Ibridge(owner()).settings()).minValidations() != 0 , "minvalidator_err");
+        uint interfacingChainId;
+        address assetAddress;
+        uint amount;
+        address receiver;
+        uint nounce;
+        Transaction memory transaction;
+        if (mintable) {
+            require(isMintTransaction[transactionId] , "mintID_err"); 
+            transaction =  mintTransactions[transactionId];
+            interfacingChainId = transaction.chainId;
+            assetAddress = transaction.assetAddress;
+            amount = transaction.amount;
+            receiver = transaction.receiver;
+            nounce = transaction.nounce;
+            if(!Ibridge(owner()).isDirectSwap(transaction.assetAddress , transaction.chainId)){
+                (,uint256 max) =  Ibridge(owner()).assetLimits(transaction.assetAddress, false);
+                require(transaction.amount <= max , "Amount_limit_Err");
+            }
         } else {
             require(isClaimTransaction[transactionId] , "caimID_err"); 
             transaction =  claimTransactions[transactionId]; 
+            interfacingChainId = transaction.chainId;
+            assetAddress = transaction.assetAddress;
+            amount = transaction.amount;
+            receiver = transaction.receiver;
+            nounce = transaction.nounce;
             (,uint256 max) =  Ibridge(owner()).assetLimits(transaction.assetAddress , true);
             require(transaction.amount <= max && transaction.amount <= assetChainBalance[transaction.assetAddress][transaction.chainId]   , "Amount_limit_Err");
         }
-       require(!transaction.isCompleted, "completed");
-       uint256 validSignatures;
-       
+        require(!transaction.isCompleted, "completed");
+        uint256 validSignatures;
+        
+
        // this part of the code was remove to access if you can recreate it to verify the signatures for a transaction
 
        // the message that was signed by the validators is a hash of derived as shown bellow
 
-        // keccak256(abi.encodePacked(
-        //     "\x19Ethereum Signed Message:\n32",
-        //     keccak256(abi.encodePacked(
-        //         chainID,   // this is goten from Ibridge(owner()).chainId()
-        //         interfacingChainId,
-        //         assetAddress,
-        //         amount,
-        //         receiver,
-        //         nounce
-        //     ))))
+            bytes32 messageHash = keccak256(abi.encodePacked(
+            "\x19Ethereum Signed Message:\n32",
+            keccak256(abi.encodePacked(
+                Ibridge(owner()).chainId(),   // this is goten from Ibridge(owner()).chainId()
+                interfacingChainId,
+                assetAddress,
+                amount,
+                receiver,
+                nounce
+            ))));
+
+            for(uint i = 0; i < signatures.length; i++){
+               address signer = messageHash.recover(signatures[i]); // returns the address of the signature
+               // checks if the address is a valid validator;
+                if(IController(Ibridge(owner()).controller()).isValidator(signer)){
+                    validSignatures++;
+                }
+            }
 
     // to all you need to do here is verify each of this signatures to accertain if the are from a valid signer
 
 
        //
-       require(validSignatures >= Isettings(Ibridge(owner()).settings()).minValidations() ,"insuficient_signers");
-       transactionValidations[transactionId].validationCount = validSignatures; 
-       transactionValidations[transactionId].validated  = true;
+        require(validSignatures >= Isettings(Ibridge(owner()).settings()).minValidations() ,"insuficient_signers");
+        transactionValidations[transactionId].validationCount = validSignatures; 
+        transactionValidations[transactionId].validated  = true;
         emit TransactionValidated(transactionId);
-       if (mintable) {
-           Ibridge(owner()).mint(transactionId);
-       } else {
-           Ibridge(owner()).claim(transactionId);
-       }
-      
-   }
-
-
-   
+        if (mintable) {
+            Ibridge(owner()).mint(transactionId);
+        } else {
+            Ibridge(owner()).claim(transactionId);
+        }
+    }
 
     function transactionValidated(bytes32 transactionID) external  view returns (bool) {
-      return transactionValidations[transactionID].validated;
-  }
+        return transactionValidations[transactionID].validated;
+    }
 
 }
-
-  
