@@ -1,6 +1,6 @@
 # bridgeInterview
 
-To further test your ability with solidity language, we have decided to set up a little test for you.This test  is to ascertain the level of your understanding of the language and how rooted you are in solidity.the bridge smart have been made public to you on the link as followshttps://github.com/bridgeNetwork1/bridgeInterview
+To further test your ability with solidity language, we have decided to set up a little test for you.This test  is to ascertain the level of your understanding of the language and how rooted you are in solidity.the bridge smart have been made public to you on the link as followshttps://github.com/bridgeNetworklabs/bridgeInterview
 
 This project contains the token bridge contract for the bridge protocol.the tas is as follows:
 1. go over the entire project code and see if you can understand the design and flow of the project    ensure you understand each contract and how they are related to each other.
