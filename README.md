@@ -23,4 +23,7 @@ This project contains the token bridge contract for the bridge protocol.the tas 
 3. deploy the entire project on the bsc testnet and set up the project correctly and verify each contract on bsc scan.
 4. register a rail on the deployed project 
 5.  send out some tokens using the send function on the bridge contract.
+6.  register a foreign asset
+7.  register a mintTransaction 
+8.  validate the mint transaction 
 you have 72 hours to attempt this. once successful share the contract addresses of the deployed project.Thank you and goodluck.
