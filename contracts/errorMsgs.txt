@@ -15,3 +15,11 @@ minted  : M
 not validated : N_V
 claim ID error : CI_E
 Claimed  :  C
+
+forge create --rpc-url https://data-seed-prebsc-2-s1.binance.org:8545 \ --private-key 16b96df69fa51182a271095c0c4535e3910006e338ae6ce6bf59f2b7ee3ad582 \ src/Controller.sol:Controller \ --verify
+
+controller -- 0x19aa8266458CB5C3B8D27Ca756E736dBf516e693
+settings -- 0xFDDEe77a622AF0DF922250F55c0d6bBC20C492E4
+registry -- 0x9b22d1bFF8f6956817EC3538de0142a54cF44a8c
+FeeController -- 0xB756aC42e33474eA8FbBB94e6E7eF3b13622519A
+Bridgepool -- 0xDFf9C522E3ce74EB6C5D79E5a6618cED3bF17935

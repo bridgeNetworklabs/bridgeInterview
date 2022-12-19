@@ -5,62 +5,62 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Controller is Ownable {
 
-  mapping(address =>bool) public isAdmin;
-  mapping(address =>bool) public isRegistrar;
-  mapping(address =>bool) public isOracle;
-  mapping(address =>bool) public isValidator;
-  address[] public validators;
-  address[] public admins;
-  address[] public oracles;
-  address[] public registrars;
- 
-  event AdminAdded(address indexed admin);
-  event AdminRemoved(address indexed admin);
-  event RegistrarAdded(address indexed registrar);
-  event RegistrarRemoved(address indexed registrar);
-  event OracleAdded(address indexed oracle);
-  event OracleRemoved(address indexed oracle);
-  event ValidatorAdded(address indexed validator);
-  event ValidatorRemoved(address indexed validator);
+    mapping(address =>bool) public isAdmin;
+    mapping(address =>bool) public isRegistrar;
+    mapping(address =>bool) public isOracle;
+    mapping(address =>bool) public isValidator;
+    address[] public validators;
+    address[] public admins;
+    address[] public oracles;
+    address[] public registrars;
+    
+    event AdminAdded(address indexed admin);
+    event AdminRemoved(address indexed admin);
+    event RegistrarAdded(address indexed registrar);
+    event RegistrarRemoved(address indexed registrar);
+    event OracleAdded(address indexed oracle);
+    event OracleRemoved(address indexed oracle);
+    event ValidatorAdded(address indexed validator);
+    event ValidatorRemoved(address indexed validator);
 
 
-  modifier onlyAdmin() {
+    modifier onlyAdmin() {
         require(isAdmin[_msgSender()] || owner() == _msgSender(), "U_A");
         _;
     }
     
 
-   constructor() {
+    constructor() {
         // isAdmin[_msgSender()] = true;
         addAdmin(_msgSender() , true);
     }
 
 
-  function addAdmin(address _admin , bool add) public onlyOwner {
-      if (add) {
-          require(!isAdmin[_admin] , "already an admin");
-          emit AdminAdded(_admin);
-          admins.push(_admin);
-      } else {
-          require(isAdmin[_admin] , "not an admin");
-          for (uint256 index; index < admins.length ; index++) {
-            if (admins[index] == _admin) {
-               admins[index] = admins[admins.length - 1];
-               admins.pop();
+    function addAdmin(address _admin , bool add) public onlyOwner {
+        if (add) {
+            require(!isAdmin[_admin] , "already an admin");
+            emit AdminAdded(_admin);
+            admins.push(_admin);
+        } else {
+            require(isAdmin[_admin] , "not an admin");
+            for (uint256 index; index < admins.length ; index++) {
+                if (admins[index] == _admin) {
+                admins[index] = admins[admins.length - 1];
+                admins.pop();
+                }
             }
-          }
-          emit AdminRemoved(_admin);
-      }
-      isAdmin[_admin] = add;
+            emit AdminRemoved(_admin);
+        }
+        isAdmin[_admin] = add;
     }
 
 
-  function addRegistrar(address _registrar , bool add) external onlyAdmin {
-      if (add) {
-          require(!isRegistrar[_registrar] , "already a Registrer");
-          emit RegistrarAdded(_registrar);
-          registrars.push(_registrar);
-       } else {
+    function addRegistrar(address _registrar , bool add) external onlyAdmin {
+        if (add) {
+            require(!isRegistrar[_registrar] , "already a Registrer");
+            emit RegistrarAdded(_registrar);
+            registrars.push(_registrar);
+        } else {
             require(isRegistrar[_registrar] , "not a Registrer");
             for (uint256 index; index < validators.length ; index++) {
                 if (registrars[index] == _registrar) {
@@ -81,19 +81,19 @@ contract Controller is Ownable {
             oracles.push(_oracle);
         } else {
         require(isOracle[_oracle] , "not an oracle");
-          for (uint256 index; index < oracles.length ; index++) {
+            for (uint256 index; index < oracles.length ; index++) {
             if (oracles[index] == _oracle) {
                 oracles[index] = oracles[oracles.length - 1];
                 oracles.pop();
             }
-         }
-         emit OracleRemoved(_oracle);
+        }
+            emit OracleRemoved(_oracle);
         }
         isOracle[_oracle] = add;
     }  
     
     
-   function addValidator(address _validator , bool add) external onlyAdmin {
+    function addValidator(address _validator , bool add) external onlyAdmin {
         if (add) {
             require(!isValidator[_validator] , "already a Validator");
             emit ValidatorAdded(_validator);
@@ -109,25 +109,25 @@ contract Controller is Ownable {
             emit ValidatorRemoved(_validator);
         }
         isValidator[_validator] = add;
-   } 
+} 
 
 
-  function validatorsCount() public  view returns (uint256){
-      return validators.length;
-  }
+    function validatorsCount() public  view returns (uint256){
+        return validators.length;
+    }
 
 
-  function oraclesCount() public  view returns (uint256){
-      return oracles.length;
-  }
+    function oraclesCount() public  view returns (uint256){
+        return oracles.length;
+    }
 
 
-  function adminsCount() public  view returns (uint256){
-      return admins.length;
-  }
+    function adminsCount() public  view returns (uint256){
+        return admins.length;
+    }
 
 
-  function registrarsCount() public  view returns (uint256){
-      return registrars.length;
-  }
+    function registrarsCount() public  view returns (uint256){
+        return registrars.length;
+    }
 }

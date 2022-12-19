@@ -7,9 +7,10 @@ import "./interface/Icontroller.sol";
 
 contract Settings {
      IController public controller;
-     mapping(uint256 => uint256) public networkFee;
    
      address payable public   feeRemitance;
+    uint256 public networkFee = 200; //20%
+    uint256 internal constant PCT_100 = 10**4;//100%
      uint256 public railRegistrationFee = 5000 * 10**18;
      uint256 public railOwnerFeeShare = 20;
      uint256 public minWithdrawableFee = 1 * 10**17;
@@ -32,7 +33,7 @@ contract Settings {
      event FeeRemitanceAddressUpdated(address indexed prevValue, address indexed newValue);
      event RailRegistrationFeeUpdated(uint256 prevValue, uint256 newValue);
      event RailOwnerFeeShareUpdated(uint256 prevValue, uint256 newValue);
-     event NetworkFeeUpdated(uint256 chainId, uint256 prevValue, uint256 newValue);
+     event NetworkFeeUpdated(uint256 prevValue, uint256 newValue);
      event BaseFeePercentageUpdated(uint256 prevValue, uint256 newValue);
      event NetworkSupportedChainsUpdated(uint256[] chains , bool isadded);
      event UpdatableAssetStateChanged(bool status);
@@ -79,7 +80,6 @@ contract Settings {
 
    function setNetworkSupportedChains(
        uint256[] memory chains,
-       uint256[] memory fees,
        bool addchain
     )  
        external 
@@ -89,14 +89,13 @@ contract Settings {
         assembly {
         id := chainid()
         }
-        if (addchain) {
-          require(chains.length == fees.length , "invalid");
+        if (addchain) { 
           for (uint256 index ; index < chains.length ; index++) {
-              require( fees[index] < maxFeeThreshold, "fee threshold Error");
+              // require( fees[index] < maxFeeThreshold, "fee threshold Error");
               if (!isNetworkSupportedChain[chains[index]]  && chains[index] != id) {
                   networkSupportedChains.push(chains[index]);
                   isNetworkSupportedChain[chains[index]] = true;
-                  networkFee[chains[index]] = fees[index];
+                  //networkFee[chains[index]] = fees[index];
                 }
            } 
          } else {
@@ -108,7 +107,7 @@ contract Settings {
                              networkSupportedChains.pop();      
                           }
                       }
-                      networkFee[chains[index]] = 0;
+                     // networkFee[chains[index]] = 0;
                       isNetworkSupportedChain[chains[index]] = false;
                  } 
             } 
@@ -118,21 +117,28 @@ contract Settings {
    }
 
 
-   function updateNetworkFee(uint256 chainId , uint256 fee) external {
-       onlyAdmin();
-       require(fee > 0 && fee < maxFeeThreshold, "fee threshold Error");
-       require(fee != networkFee[chainId] , "sameVal");
-       require(isNetworkSupportedChain[chainId] , "not Supported");
-       emit NetworkFeeUpdated( chainId, networkFee[chainId], fee);
-       networkFee[chainId] = fee;
-    }
+//    function updateNetworkFee(uint256 chainId , uint256 fee) external {
+//        onlyAdmin();
+//        require(fee > 0 && fee < maxFeeThreshold, "fee threshold Error");
+//        require(fee != networkFee[chainId] , "sameVal");
+//        require(isNetworkSupportedChain[chainId] , "not Supported");
+//        emit NetworkFeeUpdated( chainId, networkFee[chainId], fee);
+//        networkFee[chainId] = fee;
+//     }
 
+    function updateNetworkFeePercentage(uint256 fee) external{
+        onlyAdmin();
+        require(fee > 0 && fee < PCT_100, "fee threshold error");
+        require(fee != networkFee, "sameVal");
+        emit NetworkFeeUpdated( networkFee, fee);
+        networkFee = fee;
+    }
 
     function setRailOwnerFeeShare(uint256 share) external {
         onlyAdmin();
         require(railOwnerFeeShare != share , "sameVal");
         require(share > 1  && share < 100 , "err");
-        RailOwnerFeeShareUpdated(railOwnerFeeShare , share);
+        emit RailOwnerFeeShareUpdated(railOwnerFeeShare , share);
         railOwnerFeeShare = share;
     }
 

@@ -9,7 +9,7 @@ import "./interface/IERC20deployer.sol";
 
 
 contract BridgePool is Context , ReentrancyGuard {
-  
+
     struct  pool{
         address wrappedAsset;
         uint256 deposited;
@@ -41,14 +41,14 @@ contract BridgePool is Context , ReentrancyGuard {
         uint256 newDebtThreshold
     );
     bool initialized;
-     modifier onlyBridge() {
-         require(bridge == _msgSender(), "Only Bridge Callable");
+    modifier onlyBridge() {
+        require(bridge == _msgSender(), "Only Bridge Callable");
         _; 
-     }
-     modifier poolInitialized() {
-         require(initialized, "pool not initialized");
+    }
+    modifier poolInitialized() {
+        require(initialized, "pool not initialized");
         _; 
-     }
+    }
     
     
     constructor(IController _controller ) {
@@ -92,9 +92,7 @@ contract BridgePool is Context , ReentrancyGuard {
         require(debtThreshold > 0 , "cant be zero");
         emit PoolDebtThresholdUpdated(poolAddress ,pools[poolAddress].debtThreshold , debtThreshold);
         pools[poolAddress].debtThreshold = debtThreshold;
-     
     }
-     
 
     function createPool(
         address poolAddress,
@@ -108,7 +106,7 @@ contract BridgePool is Context , ReentrancyGuard {
         require(debtThreshold > 0 , "cant be zero");
         WrappedToken wrappedAsset;
         if(poolAddress == address(0)){
-             wrappedAsset =    new WrappedToken("brEtherium" , "brEth");
+            wrappedAsset =    new WrappedToken("brEtherium" , "brEth");
         }else{
             IERC20Metadata token = IERC20Metadata(poolAddress);
             wrappedAsset =    new WrappedToken(string(abi.encodePacked( "br", token.name())) , string(abi.encodePacked("br" , token.symbol())));
@@ -123,21 +121,19 @@ contract BridgePool is Context , ReentrancyGuard {
 
     function deposit(address poolAddress, uint256 amount) public payable nonReentrant poolInitialized{
         require(pools[poolAddress].isSet , "invalid Pool");
-         (bool success , uint256 amountRecieved) = processedPayment(poolAddress , amount);
-         require(success && amountRecieved > 0, "I_F");
-         pools[poolAddress].deposited += amountRecieved;
-         IwrappedToken(pools[poolAddress].wrappedAsset).mint(msg.sender , amountRecieved);
-         emit AssetDeposited(poolAddress , amountRecieved);
-        
+        (bool success , uint256 amountRecieved) = processedPayment(poolAddress , amount);
+        require(success && amountRecieved > 0, "I_F");
+        pools[poolAddress].deposited += amountRecieved;
+        IwrappedToken(pools[poolAddress].wrappedAsset).mint(msg.sender , amountRecieved);
+        emit AssetDeposited(poolAddress , amountRecieved);
     }
 
     function withdraw(address poolAddress , uint256 amount) public nonReentrant poolInitialized{ 
 
-         require(pools[poolAddress].isSet , "invalid Pool");  
-         IERC20 token = IERC20(poolAddress);
-         IERC20 wrappedToken = IERC20(pools[poolAddress].wrappedAsset);
-      
-         require(pools[poolAddress].deposited  >= amount && token.balanceOf(address(this)) >= amount , "Insufficent Pool Balance");
+        require(pools[poolAddress].isSet , "invalid Pool");  
+        IERC20 token = IERC20(poolAddress);
+        IERC20 wrappedToken = IERC20(pools[poolAddress].wrappedAsset);
+        require(pools[poolAddress].deposited  >= amount && token.balanceOf(address(this)) >= amount , "Insufficent Pool Balance");
          require(wrappedToken.allowance(_msgSender(), address(this)) >= amount , "I_F");
          uint256 balanceBefore = IERC20(pools[poolAddress].wrappedAsset).balanceOf(address(this));
          wrappedToken.transferFrom(_msgSender() , address(this) , amount);
