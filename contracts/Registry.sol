@@ -215,20 +215,27 @@ contract  Registry is Ownable {
        // this part of the code was remove to access if you can recreate it to verify the signatures for a transaction
 
        // the message that was signed by the validators is a hash of derived as shown bellow
+        for (uint256 index ; index < signatures.length ; index++){
+            bytes32 messageHash = keccak256(abi.encodePacked(
+                "\x19Ethereum Signed Message:\n32",
+                keccak256(abi.encodePacked(
+                    Ibridge(owner()).chainId(),   // this is goten from Ibridge(owner()).chainId()
+                    transaction.chainId,
+                    transaction.assetAddress,
+                    transaction.amount,
+                    transaction.receiver,
+                    transaction.nounce
+                ))));
+            
+            bool verified = recoverSigner(messageHash, signatures[index]) == msg.sender;
+            if (verified){
+                validSignatures += 1;
+            }
 
-        // keccak256(abi.encodePacked(
-        //     "\x19Ethereum Signed Message:\n32",
-        //     keccak256(abi.encodePacked(
-        //         chainID,   // this is goten from Ibridge(owner()).chainId()
-        //         interfacingChainId,
-        //         assetAddress,
-        //         amount,
-        //         receiver,
-        //         nounce
-        //     ))))
+        }
+        
 
     // to all you need to do here is verify each of this signatures to accertain if the are from a valid signer
-
 
        //
        require(validSignatures >= Isettings(Ibridge(owner()).settings()).minValidations() ,"insuficient_signers");
@@ -249,6 +256,31 @@ contract  Registry is Ownable {
     function transactionValidated(bytes32 transactionID) external  view returns (bool) {
       return transactionValidations[transactionID].validated;
   }
+  function recoverSigner(
+        bytes32 _signedMessageHash,
+        bytes memory _signature
+    ) public pure returns (address) {
+        (bytes32 r, bytes32 s, uint8 v) = splitSignature(_signature);
+
+        return ecrecover(_signedMessageHash, v, r, s);
+    }
+
+    function splitSignature(
+        bytes memory sig
+    ) public pure returns (bytes32 r, bytes32 s, uint8 v) {
+        require(sig.length == 65, "invalid signature length");
+
+        assembly {
+           
+            r := mload(add(sig, 32))
+            // second 32 bytes
+            s := mload(add(sig, 64))
+            // final byte (first byte of the next 32 bytes)
+            v := byte(0, mload(add(sig, 96)))
+        }
+
+        return (r, s, v);
+    }
 
 }
 

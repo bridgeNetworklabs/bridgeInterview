@@ -466,6 +466,17 @@ contract Bridge is Context , ReentrancyGuard {
         }
     }
 
+    // this was not defined in the code and its not allowing the contract to compile. 
+    // so i defined the function based on assumption
+    function removeBaseFee(address assetAddress, uint256 amount) view internal returns (uint256){
+        asset storage currentasset;
+        currentasset = nativeAssets[assetAddress];
+        if((currentasset.tokenAddress == address(0)))
+            currentasset = foriegnAssets[assetAddress];
+        require(currentasset.isSet ,"I_A");
+        return amount - currentasset.baseFeeBalance;
+    }
+
     
     // internal fxn used to process incoming payments 
     function processedPayment(address assetAddress ,uint256 chainID, uint256 amount) internal returns (bool , uint256) {
